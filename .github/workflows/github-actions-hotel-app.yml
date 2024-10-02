@@ -1,0 +1,47 @@
+name: GitHub Actions Hotel App
+on:
+  push:
+    branches:
+      - main
+      - gh-actions
+  pull_request:
+    branches: main
+    
+jobs:
+  Hotel-App-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+        
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Playwright
+        run: npx playwright install
+
+      - name: Pull docker image
+        run: docker pull rasilva1986/my-vue-app:v1
+      
+      - name: Start application
+        run: docker run --name hotelapp -d -p 3000:3000 rasilva1986/my-vue-app:v1
+
+      - name: Wait for application to start
+        run: npx wait-on http://localhost:3000
+
+      - name: Run tests
+        env:
+          TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          BASE_URL: ${{ secrets.BASE_URL }}
+          BASE_API_URL: ${{ secrets.BASE_API_URL }}
+        run: npm run testing
+
+      - name: Save test result as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results
+          path: ./playwright-report
+
+      - name: Terminate application
+        run: docker stop hotelapp

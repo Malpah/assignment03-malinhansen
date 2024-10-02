@@ -16,6 +16,7 @@
     "@types/node": "^22.7.4"
   },
   "dependencies": {
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "wait-on": "^8.0.1"
   }
 }

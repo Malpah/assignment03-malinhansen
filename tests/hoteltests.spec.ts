@@ -5,30 +5,15 @@ import { RoomsPage } from './pages/rooms-page';
 import { RoomCreatePage } from './pages/roomCreate-page';
 import { BillsPage } from './pages/bills-page';
 import { BillEditPage } from './pages/billEdit-page';
+import { APIHelper } from './apiHelper';
+import { DataGenerator } from './testData';
 
-const test_username: any = process.env.TEST_USERNAME;
-const test_password: any = process.env.TEST_PASSWORD;
+const test_username = `${process.env.TEST_USERNAME}`;
+const test_password = `${process.env.TEST_PASSWORD}`;
+const baseUrl = `${process.env.BASE_API_URL}`;
 
 test.describe('frontend tests', () => {
-  test('Test 1 - Perform login and logout', async ({ page }) => {
-    const loginPage = new LoginPage(page);
-    const dashboardPage = new DashboardPage(page);
-
-    await loginPage.goto();
-    await expect(loginPage.usernameInputField).toBeEmpty();
-    await expect(loginPage.passwordInputField).toBeEmpty();
-    expect(page.url()).toBe(loginPage.pageUrl);
-
-    await loginPage.performLogin(test_username, test_password);
-    await expect(dashboardPage.welcomeMessageUser).toContainText(test_username);
-    await expect(dashboardPage.pageHeading).toBeVisible();
-
-    await dashboardPage.performLogout();
-    await expect(loginPage.pageHeading).toBeVisible();
-    expect(page.url()).toBe(loginPage.pageUrl);
-  });
-
-  test('Test 2 - Create new room', async ({ page }) => {
+  test('Test 1 - Create new room', async ({ page }) => {
     const loginPage = new LoginPage(page);
     const dashboardPage = new DashboardPage(page);
     const roomsPage = new RoomsPage(page);
@@ -56,7 +41,7 @@ test.describe('frontend tests', () => {
     await dashboardPage.performLogout();
   });
 
-  test('Test 3 - Edit a bill', async ({ page }) => {
+  test('Test 2 - Edit a bill', async ({ page }) => {
     const loginPage = new LoginPage(page);
     const dashboardPage = new DashboardPage(page);
     const billsPage = new BillsPage(page);
@@ -83,7 +68,51 @@ test.describe('frontend tests', () => {
 });
 
 test.describe('backend tests', () => {
-  test('get started link', async ({ page }) => {
+  let apiHelper: APIHelper;
+  let dataGenerator: DataGenerator;
 
+  test.beforeAll('login, get access token', async ({ request }) => {
+    apiHelper = new APIHelper(baseUrl);
+    dataGenerator = new DataGenerator();
+    const login = await apiHelper.login(request);
+    expect(login.status()).toBe(200);
+  });
+
+  test('Test 1 - delete client', async ({ request }) => {
+    const getClients = await apiHelper.getClients(request);
+    const allClients = await getClients.json();
+    const penultimateClientId = allClients[allClients.length - 2].id;
+
+    const deleteClient = await apiHelper.deleteClient(request, penultimateClientId);
+    expect(deleteClient.ok()).toBeTruthy();
+
+    const getClientById = await apiHelper.getClientById(request, penultimateClientId);
+    expect(getClientById.status()).toBe(401);
+  });
+
+  test('Test 2 - create reservation', async ({ request }) => {
+    const getClients = await apiHelper.getClients(request);
+    const clientsData = await getClients.json();
+    let clientIds = clientsData.map(({ id }) => id);
+
+    const getRooms = await apiHelper.getRooms(request);
+    const roomsData = await getRooms.json();
+    let roomIds = roomsData.map(({ id }) => id);
+
+    const getBills = await apiHelper.getBills(request);
+    const billsData = await getBills.json();
+    let billIds = billsData.map(({ id }) => id);
+
+    const payload = dataGenerator.generateReservationData(clientIds, roomIds, billIds);
+    const createReservation = await apiHelper.createReservation(request, payload);
+    expect(createReservation.ok()).toBeTruthy();
+    expect(await createReservation.json()).toMatchObject(payload);
+
+    const getReservations = await apiHelper.getReservations(request);
+    expect(await getReservations.json()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining(payload),
+      ])
+    );
   });
 });

@@ -17,8 +17,8 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      # - name: Install Playwright
-      #   run: echo npx playwright install
+      - name: Install Playwright
+        run: echo npx playwright install
 
       - name: Pull docker image
         run: docker pull rasilva1986/my-vue-app:v1
